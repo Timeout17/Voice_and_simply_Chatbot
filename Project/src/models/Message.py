@@ -6,8 +6,8 @@ import datetime
 
 @dataclass
 class MessageClass():
-    id: str = field(default_factory=uuid.uuid4())
-    prompt: str
-    time: datetime = field(default_factory=datetime.datetime.now())
     role: UserEnum | None 
+    prompt: str
+    time: datetime = field(default_factory=datetime.datetime.now)
+    id: str = field(default_factory=uuid.uuid4)
 
