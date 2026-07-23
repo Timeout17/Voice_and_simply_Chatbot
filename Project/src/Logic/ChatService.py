@@ -2,12 +2,15 @@ from Project.src.models.Message import MessageClass
 from Project.src.Adapters.LLMAdepters.GroqAdapter import GroqAdaptetClass
 from Project.src.Agent.AI_Agent import AIAgentClass
 from Project.src.Enums.Role import UserEnum
+from Project.src.data.DAO import MessageDAOClass
+from Project.src.data.DataBaseConnention import DataBaseConnentionClass
 
 
 class ChatServiceCLass():
-    def __int__(self):
+    def __init__(self, dao):
         # a jövőbeli DAO-nak
-        pass
+        self.userdao = dao
+        
 
     def Answer_message(self, message: str):
 
@@ -21,19 +24,27 @@ class ChatServiceCLass():
             role=UserEnum.USER.value
         )
 
-        # vissza, jön, hogy mentette, ha igen, akkor adja tovább
+        if (self.userdao.save_message(text)):
 
-        # jön egy rútert ami dönt, hogy akkor az üzenet hossza alapján, melyik model legyen használva
-        # most Groq ai csak
-        # Adaptert meghívjuk
+            history = self.userdao.get_all_messages()
 
-        groq_adapter = GroqAdaptetClass()
-        client = groq_adapter.client
+            memory = [
+                        {
+                            "role": m.role,
+                            "content": m.prompt
+                        }
+                        for m in history
+                    ]
 
-        Agent = AIAgentClass(client)
+            groq_adapter = GroqAdaptetClass()
+            client = groq_adapter.client
 
-        return Agent.Answer(text.prompt)
+            Agent = AIAgentClass(client)
+            
+            result = Agent.Answer(message, memory)
 
-        
 
+            return result
+        return "Nem menti el"
+            
         

@@ -14,6 +14,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
 from Project.src.Logic.ChatService import ChatServiceCLass
+from Project.src.data.DataBaseConnention import DataBaseConnentionClass
+from Project.src.data.DAO import MessageDAOClass
+from Project.src.data.DatabaseInitializer import DatabaseInitializerClass
+
+
 
 app = FastAPI(title="Simply bot")
 
@@ -31,8 +36,15 @@ def send_message(data: Message):
     
     
     # megkapja az Agent, amire majd válaszol, és a választ oda adja az orhesztrátornek, aki majd összerakja üzenetté  
+
+    conn = DataBaseConnentionClass().get_connection()
+
+    i = DatabaseInitializerClass(conn)
+    i.CreateMessagetable()
+
+    userdao = MessageDAOClass(conn)
     
-    chat:ChatServiceCLass = ChatServiceCLass()
+    chat:ChatServiceCLass = ChatServiceCLass(userdao)
 
     message = chat.Answer_message(data.prompt)
 
