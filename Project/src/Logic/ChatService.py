@@ -2,10 +2,8 @@ from Project.src.models.Message import MessageClass
 from Project.src.Adapters.LLMAdepters.GroqAdapter import GroqAdaptetClass
 from Project.src.Agent.AI_Agent import AIAgentClass
 from Project.src.Enums.Role import UserEnum
-from Project.src.data.DAO import MessageDAOClass
-from Project.src.data.DataBaseConnention import DataBaseConnentionClass
 from Project.src.Adapters.VoiceAdapters.GttsAdapter import GTTSAdapterClass
-
+from Project.src.Agent.SummaryMemory import SummaryServiceClass
 
 class ChatServiceClass:
 
@@ -17,6 +15,7 @@ class ChatServiceClass:
         self.agent = AIAgentClass(groq_adapter.client)
 
         self.voice = GTTSAdapterClass()
+        self.summaryclass = SummaryServiceClass(self.agent)
         
     def _process_and_answer(self, prompt_text: str) -> str:
         """Belső segédfüggvény a közös logika kezelésére (DRY elv)."""
@@ -40,6 +39,23 @@ class ChatServiceClass:
             for m in history
         ]
 
+        if (self.userdao.get_message_count() > 10):
+            
+            summary = self.summaryclass.create_summary(memory)
+
+            message_obj = MessageClass(
+            prompt=summary,
+            role=UserEnum.SUMMARY.value
+            )
+
+            self.userdao.clear_messages_and_set_summary(message_obj)
+
+            memory = [
+                {
+                    "role": UserEnum.SUMMARY.value,
+                    "content": summary
+                }
+            ]
         # 4. Válasz generálása az LLM segítségével
         # Fontos: A prompt_text-et adjuk át, hangüzenet esetén is a transzkripciót!
         return self.agent.Answer(prompt_text, memory)
