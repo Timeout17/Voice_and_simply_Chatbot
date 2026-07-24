@@ -4,47 +4,59 @@ from Project.src.Agent.AI_Agent import AIAgentClass
 from Project.src.Enums.Role import UserEnum
 from Project.src.data.DAO import MessageDAOClass
 from Project.src.data.DataBaseConnention import DataBaseConnentionClass
+from Project.src.Adapters.VoiceAdapters.GttsAdapter import GTTSAdapterClass
 
 
-class ChatServiceCLass():
+class ChatServiceClass:
+
     def __init__(self, dao):
-        # a jövőbeli DAO-nak
+
         self.userdao = dao
+
+        groq_adapter = GroqAdaptetClass()
+        self.agent = AIAgentClass(groq_adapter.client)
+
+        self.voice = GTTSAdapterClass()
         
-
-    def Answer_message(self, message: str):
-
-        # el küldi megnéztni, hogy minden jó-e
-        # utána ellenőriz, hogy külhet-e még üzentett a felhasználó
-
-        # ha igen, akkor objektumosítja, és küldi tovább a DAO-nak
-
-        text: MessageClass = MessageClass(
-            prompt=message,
+    def _process_and_answer(self, prompt_text: str) -> str:
+        """Belső segédfüggvény a közös logika kezelésére (DRY elv)."""
+        # 1. Üzenet objektum létrehozása
+        message_obj = MessageClass(
+            prompt=prompt_text,
             role=UserEnum.USER.value
         )
 
-        if (self.userdao.save_message(text)):
+        # 2. Mentés az adatbázisba
+        if not self.userdao.save_message(message_obj):
+            return "Nem menti el"
 
-            history = self.userdao.get_all_messages()
+        # 3. Előzmények lekérése és formázása
+        history = self.userdao.get_all_messages()
+        memory = [
+            {
+                "role": m.role,
+                "content": m.prompt
+            }
+            for m in history
+        ]
 
-            memory = [
-                        {
-                            "role": m.role,
-                            "content": m.prompt
-                        }
-                        for m in history
-                    ]
+        # 4. Válasz generálása az LLM segítségével
+        # Fontos: A prompt_text-et adjuk át, hangüzenet esetén is a transzkripciót!
+        return self.agent.Answer(prompt_text, memory)
 
-            groq_adapter = GroqAdaptetClass()
-            client = groq_adapter.client
-
-            Agent = AIAgentClass(client)
+    def Answer_message(self, message: str) -> str:
+        """Szöveges üzenet feldolgozása."""
+        return self._process_and_answer(message)
             
-            result = Agent.Answer(message, memory)
+    def Answer_voice_message(self, audio_file_path: str):
 
+        transcribed_message = self.agent.Transcribe_audio(audio_file_path)
 
-            return result
-        return "Nem menti el"
-            
-        
+        answer = self._process_and_answer(transcribed_message)
+
+        audio_path = self.voice.text_to_speech(
+            answer,
+            "response.mp3"
+        )
+
+        return answer, audio_path

@@ -8,7 +8,14 @@ class ContentCreatonClass():
         return  [
                 {
                 "role": UserEnum.SYSTEM.value,
-                    "content": "Magyarul beszélsz. Kedves és segítő kész vagy"
+                    "content": """
+                    Te egy segítőkész hangsegéd vagy.
+                    A felhasználói üzenet beszédátírásból származik.
+                    Közvetlenül válaszolj a felhasználó tényleges kérésére.
+                    Ne foglalkozz azzal, hogy hallod-e a hangot.
+                    Ne magyarázd el a korlátaidat, hacsak nem kérdeznek rá.
+                    És ami nagyon fontos, MAGYAR VAGY
+"""
                 }
                 ] + history +[
                 {

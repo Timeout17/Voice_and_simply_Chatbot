@@ -10,13 +10,15 @@ chatbot_root = os.path.abspath(os.path.join(current_dir, "../../.."))
 if chatbot_root not in sys.path:
     sys.path.insert(0, chatbot_root)
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
+from pathlib import Path
 import uvicorn
-from Project.src.Logic.ChatService import ChatServiceCLass
+import shutil
 from Project.src.data.DataBaseConnention import DataBaseConnentionClass
 from Project.src.data.DAO import MessageDAOClass
 from Project.src.data.DatabaseInitializer import DatabaseInitializerClass
+from Project.src.Logic.ChatService import ChatServiceClass
 
 
 
@@ -25,9 +27,53 @@ app = FastAPI(title="Simply bot")
 class Message(BaseModel):
     prompt: str
 
+@app.post("/query/voice")    
+async def send_message(file: UploadFile = File(...)):
+
+    try:
+        audiofiles = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "audiofiles"
+        audiofiles.mkdir(parents=True, exist_ok=True)
+
+        file_path = audiofiles / file.filename
+
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+
+        conn = DataBaseConnentionClass().get_connection()
+        userdao = MessageDAOClass(conn)
+
+        chat = ChatServiceClass(userdao)
+
+        answer, audio_path = chat.Answer_voice_message(str(file_path))
+
+        return {
+            "answer": answer,
+            "audio_path": audio_path
+        }
+
+    except Exception as e:
+        print("HIBA:", e)
+        return {
+            "error": str(e)
+        }
+
+
+
+@app.on_event("startup")
+def CreateDatabase():
+    conn = DataBaseConnentionClass()
+    connection = conn.get_connection()
+
+    initializer = DatabaseInitializerClass(connection)
+
+    initializer.CreateMessagetable()
+
+    connection.close()
+
 
 @app.post("/query")
-def send_message(data: Message):
+async def send_message(data: Message):
     
     # itt magát az üzenetet fogjuk majd messageclassba tenni, a könyebb kezelhetősség szempontjából
     
@@ -39,12 +85,9 @@ def send_message(data: Message):
 
     conn = DataBaseConnentionClass().get_connection()
 
-    i = DatabaseInitializerClass(conn)
-    i.CreateMessagetable()
-
     userdao = MessageDAOClass(conn)
     
-    chat:ChatServiceCLass = ChatServiceCLass(userdao)
+    chat: ChatServiceClass = ChatServiceClass(userdao)
 
     message = chat.Answer_message(data.prompt)
 

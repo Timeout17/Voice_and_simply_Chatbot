@@ -24,3 +24,12 @@ class AIAgentClass():
         ai_answer: str = response.choices[0].message.content
 
         return ai_answer
+    def Transcribe_audio(self, file_path: str) -> str:
+        with open(file_path, "rb") as file:
+            response = self.client.audio.transcriptions.create(
+                model="whisper-large-v3",
+                file=file
+            )
+
+        return response.text
+
